@@ -6,6 +6,7 @@ pub type ParserResult<'a> = Result<Option<Vec<SyntaxChild>>, ParserError>;
 
 #[derive(Clone, Debug)]
 pub enum ParserError {
+    RuleNotExists { id: RuleId },
 }
 
 pub struct Parser<'a> {
@@ -51,7 +52,42 @@ impl<'a> Parser<'a> {
         if elem.loop_range.is_default() {
             self.expr(&elem.kind)
         } else {
-            unimplemented!()
+            let tmp_index = self.index;
+            let mut children = Vec::new();
+            let mut count = 0;
+
+            loop {
+                let mut new_children = match self.expr(&elem.kind) {
+                    Ok(option) => match option {
+                        Some(new_children) => new_children,
+                        _ => break,
+                    },
+                    Err(e) => return Err(e),
+                };
+
+                match elem.loop_range.max {
+                    Maxable::Max => children.append(&mut new_children),
+                    Maxable::Specified(max) => {
+                        if count <= max {
+                            children.append(&mut new_children);
+                            count += 1;
+
+                            if count == max {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    },
+                }
+            }
+
+            if count >= elem.loop_range.min {
+                Ok(Some(children))
+            } else {
+                self.index = tmp_index;
+                Ok(None)
+            }
         }
     }
 
@@ -59,6 +95,7 @@ impl<'a> Parser<'a> {
         match elem_kind {
             ElementKind::Choice(elems) => self.choice(elems),
             ElementKind::Sequence(elems) => self.seq(elems),
+            ElementKind::Rule(rule) => self.rule(rule),
             ElementKind::String(s) => self.str(&s),
             _ => unimplemented!(),
         }
@@ -73,10 +110,7 @@ impl<'a> Parser<'a> {
                     Some(children) => return Ok(Some(children)),
                     None => (),
                 },
-                Err(e) => {
-                    self.index = tmp_index;
-                    return Err(e);
-                },
+                Err(e) => return Err(e),
             }
         }
 
@@ -97,14 +131,22 @@ impl<'a> Parser<'a> {
                         return Ok(None);
                     },
                 },
-                Err(e) => {
-                    self.index = tmp_index;
-                    return Err(e);
-                },
+                Err(e) => return Err(e),
             }
         }
 
         Ok(Some(children))
+    }
+
+    fn rule(&mut self, id: &RuleId) -> ParserResult {
+        let elem = match self.cake.rule_map.get(id) {
+            Some(v) => v,
+            None => return Err(ParserError::RuleNotExists {
+                id: id.clone(),
+            }),
+        };
+
+        self.lookahead(elem)
     }
 
     fn str(&mut self, s: &str) -> ParserResult {

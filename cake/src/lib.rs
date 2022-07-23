@@ -213,6 +213,8 @@ impl Element {
         self.set_lookahead_kind(LookaheadKind::Negative)
     }
 
+    // todo: ?*+ に対応する関数を追加
+    // todo: 再設定の対処
     pub fn times(self, times: usize) -> Element {
         self.min_to_max(times, times)
     }
@@ -222,7 +224,9 @@ impl Element {
         self
     }
 
+    // todo: rm
     pub fn min_to_max(mut self, min: usize, max: usize) -> Element {
+        // todo: 数が同じなら times() を推奨
         self.loop_range = LoopRange::validate_new(min, Maxable::Specified(max));
         self
     }
