@@ -7,11 +7,13 @@ pub type ParserResult<'a> = Result<Option<Vec<SyntaxChild>>, ParserError>;
 #[derive(Clone, Debug)]
 pub enum ParserError {
     RuleNotExists { id: RuleId },
+    RecursionExceededLimit,
 }
 
 pub struct Parser<'a> {
     cake: &'a Cake,
     max_recursion: usize,
+    recursion_count: usize,
     input: &'a str,
     index: usize,
 }
@@ -21,6 +23,7 @@ impl<'a> Parser<'a> {
         let mut parser = Parser {
             cake: cake,
             max_recursion: max_recursion,
+            recursion_count: 0,
             input: input,
             index: 0,
         };
@@ -42,10 +45,19 @@ impl<'a> Parser<'a> {
     }
 
     fn lookahead(&mut self, elem: &Rc<Element>) -> ParserResult {
-        match elem.lookahead_kind {
+        if self.recursion_count >= self.max_recursion {
+            return Err(ParserError::RecursionExceededLimit);
+        }
+
+        self.recursion_count += 1;
+
+        let result = match elem.lookahead_kind {
             LookaheadKind::None => self.times(elem),
             _ => unimplemented!(),
-        }
+        };
+
+        self.recursion_count -= 1;
+        result
     }
 
     fn times(&mut self, elem: &Rc<Element>) -> ParserResult {
