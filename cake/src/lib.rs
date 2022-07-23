@@ -1,3 +1,4 @@
+pub mod parser;
 mod tests;
 
 use {
@@ -68,7 +69,7 @@ pub fn skip() -> Element {
 }
 
 pub struct Cake {
-    pub rule_map: HashMap<RuleId, Rule>,
+    rule_map: HashMap<RuleId, Rc<Element>>,
 }
 
 impl Cake {
@@ -88,7 +89,7 @@ impl Cake {
                 panic!("Rule ID `{}` is already declared.", id);
             }
 
-            self.rule_map.insert(id, each_rule);
+            self.rule_map.insert(id, each_rule.element);
         }
     }
 }
@@ -195,7 +196,7 @@ impl Element {
         Element {
             kind: kind,
             lookahead_kind: LookaheadKind::None,
-            loop_range: LoopRange::validate_new(1, Maxable::Specified(1)),
+            loop_range: LoopRange::default(),
         }
     }
 
@@ -230,25 +231,25 @@ impl Element {
         self
     }
 
-    fn to_choice_elements(self) -> Vec<Element> {
+    fn to_choice_elements(self) -> Vec<Rc<Element>> {
         if self.is_choice() {
             match self.kind {
                 ElementKind::Choice(elems) => elems,
                 _ => unreachable!(),
             }
         } else {
-            vec![self]
+            vec![Rc::new(self)]
         }
     }
 
-    fn to_sequence_elements(self) -> Vec<Element> {
+    fn to_sequence_elements(self) -> Vec<Rc<Element>> {
         if self.is_sequence() {
             match self.kind {
                 ElementKind::Sequence(elems) => elems,
                 _ => unreachable!(),
             }
         } else {
-            vec![self]
+            vec![Rc::new(self)]
         }
     }
 
@@ -303,8 +304,8 @@ impl Add for Element {
 
 #[derive(Clone, PartialEq)]
 pub enum ElementKind {
-    Choice(Vec<Element>),
-    Sequence(Vec<Element>),
+    Choice(Vec<Rc<Element>>),
+    Sequence(Vec<Rc<Element>>),
     Rule(RuleId),
     String(String),
     CharacterClass(Regex),
@@ -377,11 +378,21 @@ impl LoopRange {
             max: max,
         }
     }
+
+    pub fn is_default(&self) -> bool {
+        self.min == 1 && self.max == Maxable::Specified(1)
+    }
 }
 
 impl Debug for LoopRange {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self)
+    }
+}
+
+impl Default for LoopRange {
+    fn default() -> LoopRange {
+        LoopRange::validate_new(1, Maxable::Specified(1))
     }
 }
 
