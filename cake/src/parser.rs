@@ -78,7 +78,10 @@ impl<'a> Parser<'a> {
                 };
 
                 match elem.loop_range.max {
-                    Maxable::Max => children.append(&mut new_children),
+                    Maxable::Max => {
+                        children.append(&mut new_children);
+                        count += 1;
+                    },
                     Maxable::Specified(max) => {
                         if count <= max {
                             children.append(&mut new_children);
