@@ -28,20 +28,18 @@ fn impl_module_fn_macro(ast: &syn::DeriveInput) -> TokenStream {
         _ => panic!("Trait `RuleContainer` is only available for struct."),
     };
 
-    let elem_fns = generate_element_fns(item_name, fields);
-    let into_rules = generate_into_rules(item_name, fields);
+    let self_impl = generate_self_impl(item_name, fields);
+    let module_assist_impl = generate_module_assist_impl(item_name, fields);
 
     let gen = quote!{
-        impl #item_name {
-            #elem_fns
-            #into_rules
-        }
+        #self_impl
+        #module_assist_impl
     };
 
     gen.into()
 }
 
-fn generate_element_fns(item_name: &proc_macro2::Ident, fields: &syn::punctuated::Punctuated<syn::Field, syn::token::Comma>) -> proc_macro2::TokenStream {
+fn generate_self_impl(item_name: &proc_macro2::Ident, fields: &syn::punctuated::Punctuated<syn::Field, syn::token::Comma>) -> proc_macro2::TokenStream {
     let elem_fns = fields.iter().map(|f| {
         let rule_name = match &f.ident {
             Some(v) => v,
@@ -59,10 +57,15 @@ fn generate_element_fns(item_name: &proc_macro2::Ident, fields: &syn::punctuated
 
     let mut joined_elem_fns: proc_macro2::TokenStream = quote!{};
     joined_elem_fns.append_all(elem_fns);
-    joined_elem_fns
+
+    quote!{
+        impl #item_name {
+            #joined_elem_fns
+        }
+    }
 }
 
-fn generate_into_rules(item_name: &proc_macro2::Ident, fields: &syn::punctuated::Punctuated<syn::Field, syn::token::Comma>) -> proc_macro2::TokenStream {
+fn generate_module_assist_impl(item_name: &proc_macro2::Ident, fields: &syn::punctuated::Punctuated<syn::Field, syn::token::Comma>) -> proc_macro2::TokenStream {
     let pushes = fields.iter().map(|f| {
         let rule_name = match &f.ident {
             Some(v) => v,
@@ -80,10 +83,12 @@ fn generate_into_rules(item_name: &proc_macro2::Ident, fields: &syn::punctuated:
     joined_pushes.append_all(pushes);
 
     quote!{
-        fn into_rule_vec(self) -> RuleVec {
-            let mut rules = Vec::new();
-            #joined_pushes
-            RuleVec(rules)
+        impl ModuleAssist for #item_name {
+            fn into_rule_vec(self) -> RuleVec {
+                let mut rules = Vec::new();
+                #joined_pushes
+                RuleVec(rules)
+            }
         }
     }
 }

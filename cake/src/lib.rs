@@ -3,6 +3,7 @@ mod tests;
 use {
     regex::Regex,
     std::{
+        collections::HashMap,
         fmt,
         fmt::{
             Debug,
@@ -66,8 +67,50 @@ pub fn skip() -> Element {
     Element::new(ElementKind::Skip)
 }
 
-pub trait Module: Debug {
+pub struct Cake {
+    pub rule_map: HashMap<RuleId, Rule>,
+}
+
+impl Cake {
+    pub fn new() -> Cake {
+        Cake {
+            rule_map: HashMap::new(),
+        }
+    }
+
+    pub fn add_module<T: ModuleAssist>(&mut self, module: T) {
+        let rules: Vec<Rule> = module.into_rule_vec().into();
+
+        for each_rule in rules {
+            let id = each_rule.id.clone();
+
+            if self.rule_map.contains_key(&id) {
+                panic!("Rule ID `{}` is already declared.", id);
+            }
+
+            self.rule_map.insert(id, each_rule);
+        }
+    }
+}
+
+impl Debug for Cake {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+impl Display for Cake {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.rule_map.iter().map(|v| v.1.to_string()).collect::<Vec<String>>().join("\n"))
+    }
+}
+
+pub trait Module: Debug + ModuleAssist {
     fn new() -> Self;
+}
+
+pub trait ModuleAssist: Debug {
+    fn into_rule_vec(self) -> RuleVec;
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -120,7 +163,7 @@ impl Display for Rule {
 }
 
 #[derive(Clone)]
-struct RuleVec(Vec<Rule>);
+pub struct RuleVec(Vec<Rule>);
 
 impl Debug for RuleVec {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -131,6 +174,12 @@ impl Debug for RuleVec {
 impl Display for RuleVec {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0.iter().map(|r| r.to_string()).collect::<Vec<String>>().join("\n"))
+    }
+}
+
+impl Into<Vec<Rule>> for RuleVec {
+    fn into(self) -> Vec<Rule> {
+        self.0
     }
 }
 

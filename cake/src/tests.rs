@@ -5,8 +5,9 @@ use {
 
 #[test]
 fn test() {
-    let main = Main::new();
-    println!("{:?}", main.into_rule_vec());
+    let mut cake = Cake::new();
+    cake.add_module(Main::new());
+    println!("{:?}", cake);
 }
 
 #[derive(Debug, RuleContainer)]
