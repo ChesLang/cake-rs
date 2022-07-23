@@ -43,6 +43,10 @@ macro_rules! add_rules {
     };
 }
 
+pub fn rule(id: RuleId) -> Element {
+    Element::new(ElementKind::Rule(id))
+}
+
 pub fn str(s: &str) -> Element {
     if s == "" {
         panic!("Use skip() instead of empty string.");
@@ -51,17 +55,13 @@ pub fn str(s: &str) -> Element {
     Element::new(ElementKind::String(s.to_string()))
 }
 
-pub fn char(pat: &str) -> Element {
-    let regex = match Regex::new(&format!("[{}]", pat.replace("[", "\\[").replace("]", "\\]"))) {
+pub fn regex(pat: &str) -> Element {
+    let regex = match Regex::new(pat) {
         Ok(v) => v,
         Err(_) => panic!("Regex pattern is invalid."),
     };
 
-    Element::new(ElementKind::CharacterClass(regex))
-}
-
-pub fn rule(id: RuleId) -> Element {
-    Element::new(ElementKind::Rule(id))
+    Element::new(ElementKind::Regex(regex))
 }
 
 pub fn skip() -> Element {
@@ -308,7 +308,7 @@ pub enum ElementKind {
     Sequence(Vec<Rc<Element>>),
     Rule(RuleId),
     String(String),
-    CharacterClass(Regex),
+    Regex(Regex),
     Wildcard,
     Skip,
 }
@@ -326,7 +326,7 @@ impl Display for ElementKind {
             ElementKind::Sequence(elems) => format!("({})", elems.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(" + ")),
             ElementKind::Rule(id) => id.to_string(),
             ElementKind::String(value) => value.clone(),
-            ElementKind::CharacterClass(regex) => regex.to_string(),
+            ElementKind::Regex(regex) => format!("/{}/", regex.to_string()),
             ElementKind::Wildcard => "_".to_string(),
             ElementKind::Skip => "SKIP".to_string(),
         };
