@@ -43,10 +43,6 @@ macro_rules! add_rules {
     };
 }
 
-pub fn rule(id: RuleId) -> Element {
-    Element::new(ElementKind::Rule(id))
-}
-
 pub fn str(s: &str) -> Element {
     if s == "" {
         panic!("Use skip() instead of empty string.");
