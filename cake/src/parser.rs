@@ -1,5 +1,6 @@
 use {
     crate::*,
+    regex::Regex,
     unicode_segmentation::UnicodeSegmentation,
 };
 
@@ -164,6 +165,7 @@ impl<'a> Parser<'a> {
             ElementKind::Sequence(elems) => self.seq(elems),
             ElementKind::Rule(rule) => self.rule(rule),
             ElementKind::String(s) => self.str(&s),
+            ElementKind::Regex(regex) => self.regex(&regex),
             ElementKind::Wildcard => self.wildcard(),
             _ => unimplemented!(),
         }
@@ -223,6 +225,21 @@ impl<'a> Parser<'a> {
             Ok(Some(vec![SyntaxChild::leaf(s.to_string())]))
         } else {
             Ok(None)
+        }
+    }
+
+    fn regex(&mut self, regex: &Regex) -> ParserResult {
+        match regex.find(&self.input.slice(self.index, self.input.count() - self.index)) {
+            Some(regex_match) => {
+                if regex_match.start() != 0 {
+                    Ok(None)
+                } else {
+                    let match_s = regex_match.as_str().to_string();
+                    self.index += match_s.count();
+                    Ok(Some(vec![SyntaxChild::leaf(match_s)]))
+                }
+            },
+            None => Ok(None),
         }
     }
 

@@ -184,7 +184,7 @@ impl Into<Vec<Rule>> for RuleVec {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct Element {
     pub kind: ElementKind,
     pub lookahead_kind: LookaheadKind,
@@ -397,7 +397,7 @@ impl Add for Element {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub enum ElementKind {
     Choice(Vec<Rc<Element>>),
     Sequence(Vec<Rc<Element>>),
