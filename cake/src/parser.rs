@@ -1,6 +1,33 @@
 use {
-    crate::*
+    crate::*,
+    unicode_segmentation::UnicodeSegmentation,
 };
+
+trait GraphemeCount {
+    fn count(&self) -> usize;
+
+    fn slice(&self, skip: usize, take: usize) -> String;
+}
+
+impl GraphemeCount for String {
+    fn count(&self) -> usize {
+        self.graphemes(true).count()
+    }
+
+    fn slice(&self, skip: usize, take: usize) -> String {
+        self.chars().skip(skip).take(take).collect::<String>()
+    }
+}
+
+impl GraphemeCount for str {
+    fn count(&self) -> usize {
+        self.graphemes(true).count()
+    }
+
+    fn slice(&self, skip: usize, take: usize) -> String {
+        self.chars().skip(skip).take(take).collect::<String>()
+    }
+}
 
 pub type ParserResult<'a> = Result<Option<Vec<SyntaxChild>>, ParserError>;
 
@@ -34,7 +61,7 @@ impl<'a> Parser<'a> {
 
         match parser.lookahead(&start_elem) {
             Ok(option) => {
-                if parser.index == parser.input.len() {
+                if parser.index == parser.input.count() {
                     Ok(option)
                 } else {
                     Ok(None)
@@ -166,8 +193,8 @@ impl<'a> Parser<'a> {
     }
 
     fn str(&mut self, s: &str) -> ParserResult {
-        if self.input.len() >= self.index + s.len() && self.input[self.index..self.index + s.len()] == *s {
-            self.index += s.len();
+        if self.input.count() >= self.index + s.count() && self.input.slice(self.index, s.count()) == *s {
+            self.index += s.count();
             Ok(Some(vec![SyntaxChild::leaf(s.to_string())]))
         } else {
             Ok(None)
@@ -175,8 +202,8 @@ impl<'a> Parser<'a> {
     }
 
     fn wildcard(&mut self) -> ParserResult {
-        if self.input.len() >= self.index + 1 {
-            let s = self.input[self.index..self.index + 1].to_string();
+        if self.input.count() >= self.index + 1 {
+            let s = self.input.slice(self.index, 1);
             self.index += 1;
             Ok(Some(vec![SyntaxChild::leaf(s)]))
         } else {

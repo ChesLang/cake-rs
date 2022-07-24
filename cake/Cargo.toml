@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 regex = "0.1"
 cake_derive = { path = "../cake_derive" }
+unicode-segmentation = "1.9.0"
