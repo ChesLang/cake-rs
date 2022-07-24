@@ -52,6 +52,14 @@ pub fn str(s: &str) -> Element {
 }
 
 pub fn regex(pat: &str) -> Element {
+    if pat == "" {
+        panic!("Use skip() instead of regex(\"\").");
+    }
+
+    if pat == "." {
+        panic!("Use wildcard() instead of regex(\".\").");
+    }
+
     let regex = match Regex::new(pat) {
         Ok(v) => v,
         Err(_) => panic!("Regex pattern is invalid."),
