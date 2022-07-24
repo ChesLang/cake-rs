@@ -104,7 +104,7 @@ impl<'a> Parser<'a> {
                 };
 
                 if has_succeeded {
-                    Ok(Some(vec![]))
+                    Ok(Some(Vec::new()))
                 } else {
                     Ok(None)
                 }
@@ -167,7 +167,7 @@ impl<'a> Parser<'a> {
             ElementKind::String(s) => self.str(&s),
             ElementKind::Regex(regex) => self.regex(&regex),
             ElementKind::Wildcard => self.wildcard(),
-            _ => unimplemented!(),
+            ElementKind::Skip => self.skip(),
         }
     }
 
@@ -251,6 +251,10 @@ impl<'a> Parser<'a> {
         } else {
             Ok(None)
         }
+    }
+
+    fn skip(&mut self) -> ParserResult {
+        Ok(Some(Vec::new()))
     }
 }
 
