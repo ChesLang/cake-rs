@@ -185,6 +185,8 @@ pub struct Element {
     pub kind: ElementKind,
     pub lookahead_kind: LookaheadKind,
     pub loop_range: LoopRange,
+    has_loop_range_min_set: bool,
+    has_loop_range_max_set: bool,
 }
 
 impl Element {
@@ -193,6 +195,8 @@ impl Element {
             kind: kind,
             lookahead_kind: LookaheadKind::None,
             loop_range: LoopRange::default(),
+            has_loop_range_min_set: false,
+            has_loop_range_max_set: false,
         }
     }
 
@@ -214,20 +218,88 @@ impl Element {
     }
 
     // todo: ?*+ に対応する関数を追加
-    // todo: 再設定の対処
-    pub fn times(self, times: usize) -> Element {
-        self.min_to_max(times, times)
-    }
+    pub fn times(mut self, times: usize) -> Element {
+        if self.has_loop_range_min_set || self.has_loop_range_max_set {
+            let reason = if self.has_loop_range_min_set && self.has_loop_range_max_set {
+                "cannot use times() multiple times."
+            } else if self.has_loop_range_min_set {
+                "cannot use times() with min()."
+            } else {
+                "cannot use times() with max()."
+            };
 
-    pub fn min(mut self, min: usize) -> Element {
-        self.loop_range = LoopRange::validate_new(min, Maxable::Max);
+            panic!("Loop range is already set; {}", reason);
+        }
+
+        if times == 0 {
+            panic!("Detected 0 times of loop.");
+        }
+
+        if times == 1 {
+            panic!("times(1) is the default.");
+        }
+
+        self.has_loop_range_min_set = true;
+        self.has_loop_range_max_set = true;
+        self.loop_range = LoopRange::new(times, Maxable::Specified(times));
         self
     }
 
-    // todo: rm
-    pub fn min_to_max(mut self, min: usize, max: usize) -> Element {
-        // todo: 数が同じなら times() を推奨
-        self.loop_range = LoopRange::validate_new(min, Maxable::Specified(max));
+    pub fn min(mut self, min: usize) -> Element {
+        if self.has_loop_range_min_set || self.has_loop_range_max_set {
+            let reason = if self.has_loop_range_min_set {
+                if self.has_loop_range_max_set {
+                    "cannot use min() with times()."
+                } else {
+                    "cannot use min() multiple times."
+                }
+            } else {
+                "use min() before max()."
+            };
+
+            panic!("Loop range is already set; {}", reason);
+        }
+
+        self.has_loop_range_min_set = true;
+        self.loop_range = LoopRange::new(min, Maxable::Max);
+        self
+    }
+
+    pub fn max(mut self, max: usize) -> Element {
+        if self.has_loop_range_max_set {
+            let reason = if self.has_loop_range_min_set {
+                "cannot use max() with times()."
+            } else {
+                "cannot use max() multiple times."
+            };
+
+            panic!("Max number is already set; {}", reason);
+        }
+
+        if max == 0 {
+            panic!("Cannot set 0 times as max number.");
+        }
+
+        if self.loop_range.min == 0 {
+            panic!("min(0) is not necessary.");
+        }
+
+        let min = if self.has_loop_range_min_set {
+            self.loop_range.min
+        } else {
+            0
+        };
+
+        if min > max {
+            panic!("Cannot set smaller number than min.");
+        }
+
+        if min == max {
+            panic!("Min and max number are duplicate; use times() instead.");
+        }
+
+        self.has_loop_range_max_set = true;
+        self.loop_range = LoopRange::new(min, Maxable::Specified(max));
         self
     }
 
@@ -367,12 +439,7 @@ pub struct LoopRange {
 }
 
 impl LoopRange {
-    pub fn validate_new(min: usize, max: Maxable<usize>) -> LoopRange {
-        match max {
-            Maxable::Specified(n) if min > n => panic!("Max of loop range is bigger than min."),
-            _ => (),
-        }
-
+    pub fn new(min: usize, max: Maxable<usize>) -> LoopRange {
         LoopRange {
             min: min,
             max: max,
@@ -392,7 +459,7 @@ impl Debug for LoopRange {
 
 impl Default for LoopRange {
     fn default() -> LoopRange {
-        LoopRange::validate_new(1, Maxable::Specified(1))
+        LoopRange::new(1, Maxable::Specified(1))
     }
 }
 
