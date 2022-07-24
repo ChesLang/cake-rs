@@ -80,11 +80,36 @@ impl<'a> Parser<'a> {
 
         let result = match elem.lookahead_kind {
             LookaheadKind::None => self.times(elem),
-            _ => unimplemented!(),
+            LookaheadKind::Positive => self.lookahead_(elem, true),
+            LookaheadKind::Negative => self.lookahead_(elem, false),
         };
 
         self.recursion_count -= 1;
         result
+    }
+
+    fn lookahead_(&mut self, elem: &Rc<Element>, is_positive: bool) -> ParserResult {
+        let tmp_index = self.index;
+        let result = self.times(elem);
+
+        match result {
+            Ok(option) => {
+                self.index = tmp_index;
+
+                let has_succeeded = if is_positive {
+                    option.is_some()
+                } else {
+                    option.is_none()
+                };
+
+                if has_succeeded {
+                    Ok(Some(vec![]))
+                } else {
+                    Ok(None)
+                }
+            },
+            Err(e) => Err(e),
+        }
     }
 
     fn times(&mut self, elem: &Rc<Element>) -> ParserResult {
