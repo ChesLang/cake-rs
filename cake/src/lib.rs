@@ -217,8 +217,7 @@ impl Element {
         self.set_lookahead_kind(LookaheadKind::Negative)
     }
 
-    // todo: ?*+ に対応する関数を追加
-    pub fn times(mut self, times: usize) -> Element {
+    pub fn times(self, times: usize) -> Element {
         if self.has_loop_range_min_set || self.has_loop_range_max_set {
             let reason = if self.has_loop_range_min_set && self.has_loop_range_max_set {
                 "cannot use times() multiple times."
@@ -239,13 +238,10 @@ impl Element {
             panic!("times(1) is the default.");
         }
 
-        self.has_loop_range_min_set = true;
-        self.has_loop_range_max_set = true;
-        self.loop_range = LoopRange::new(times, Maxable::Specified(times));
-        self
+        self.max_(times, times)
     }
 
-    pub fn min(mut self, min: usize) -> Element {
+    pub fn min(self, min: usize) -> Element {
         if self.has_loop_range_min_set || self.has_loop_range_max_set {
             let reason = if self.has_loop_range_min_set {
                 if self.has_loop_range_max_set {
@@ -260,12 +256,16 @@ impl Element {
             panic!("Loop range is already set; {}", reason);
         }
 
+        self.min_(min)
+    }
+
+    fn min_(mut self, min: usize) -> Element {
         self.has_loop_range_min_set = true;
         self.loop_range = LoopRange::new(min, Maxable::Max);
         self
     }
 
-    pub fn max(mut self, max: usize) -> Element {
+    pub fn max(self, max: usize) -> Element {
         if self.has_loop_range_max_set {
             let reason = if self.has_loop_range_min_set {
                 "cannot use max() with times()."
@@ -298,9 +298,28 @@ impl Element {
             panic!("Min and max number are duplicate; use times() instead.");
         }
 
+        self.max_(min, max)
+    }
+
+    fn max_(mut self, min: usize, max: usize) -> Element {
         self.has_loop_range_max_set = true;
         self.loop_range = LoopRange::new(min, Maxable::Specified(max));
         self
+    }
+
+    // Alias of `e.max(1)`.
+    pub fn optional(self) -> Element {
+        self.max(1)
+    }
+
+    // Alias of `e.min(0)`.
+    pub fn zero_or_more(self) -> Element {
+        self.min(0)
+    }
+
+    // Alias of `e.min(1)`.
+    pub fn one_or_more(self) -> Element {
+        self.min(1)
     }
 
     fn to_choice_elements(self) -> Vec<Rc<Element>> {
