@@ -112,6 +112,7 @@ impl<'a> Parser<'a> {
             ElementKind::Sequence(elems) => self.seq(elems),
             ElementKind::Rule(rule) => self.rule(rule),
             ElementKind::String(s) => self.str(&s),
+            ElementKind::Wildcard => self.wildcard(),
             _ => unimplemented!(),
         }
     }
@@ -168,6 +169,16 @@ impl<'a> Parser<'a> {
         if self.input.len() >= self.index + s.len() && self.input[self.index..self.index + s.len()] == *s {
             self.index += s.len();
             Ok(Some(vec![SyntaxChild::leaf(s.to_string())]))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn wildcard(&mut self) -> ParserResult {
+        if self.input.len() >= self.index + 1 {
+            let s = self.input[self.index..self.index + 1].to_string();
+            self.index += 1;
+            Ok(Some(vec![SyntaxChild::leaf(s)]))
         } else {
             Ok(None)
         }

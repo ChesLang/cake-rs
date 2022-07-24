@@ -60,6 +60,10 @@ pub fn regex(pat: &str) -> Element {
     Element::new(ElementKind::Regex(regex))
 }
 
+pub fn wildcard() -> Element {
+    Element::new(ElementKind::Wildcard)
+}
+
 pub fn skip() -> Element {
     Element::new(ElementKind::Skip)
 }
