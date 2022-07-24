@@ -114,14 +114,14 @@ impl<'a> Parser<'a> {
 
     fn times(&mut self, elem: &Rc<Element>) -> ParserResult<Vec<SyntaxChild>> {
         if elem.loop_range.is_default() {
-            self.expr(&elem.kind)
+            self.expr(elem)
         } else {
             let tmp_index = self.index;
             let mut children = Vec::new();
             let mut count = 0;
 
             loop {
-                let mut new_children = match self.expr(&elem.kind) {
+                let mut new_children = match self.expr(elem) {
                     Ok(option) => match option {
                         Some(new_children) => new_children,
                         _ => break,
@@ -158,8 +158,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn expr(&mut self, elem_kind: &ElementKind) -> ParserResult<Vec<SyntaxChild>> {
-        match elem_kind {
+    fn expr(&mut self, elem: &Rc<Element>) -> ParserResult<Vec<SyntaxChild>> {
+        let result = match &elem.kind {
             ElementKind::Choice(elems) => self.choice(elems),
             ElementKind::Sequence(elems) => self.seq(elems),
             ElementKind::Rule(rule) => match self.rule(rule) {
@@ -173,6 +173,17 @@ impl<'a> Parser<'a> {
             ElementKind::Regex(regex) => self.regex(&regex),
             ElementKind::Wildcard => self.wildcard(),
             ElementKind::Skip => self.skip(),
+        };
+
+        match &elem.tag {
+            Some(name) => match result {
+                Ok(option) => match option {
+                    Some(new_children) => Ok(Some(vec![SyntaxChild::node(name.clone(), new_children)])),
+                    None => Ok(None),
+                },
+                Err(e) => Err(e),
+            },
+            None => result,
         }
     }
 
@@ -299,6 +310,10 @@ pub enum SyntaxChild {
 }
 
 impl SyntaxChild {
+    pub fn node(name: String, children: Vec<SyntaxChild>) -> SyntaxChild {
+        SyntaxChild::Node(SyntaxNode::new(name, children))
+    }
+
     pub fn leaf(value: String) -> SyntaxChild {
         SyntaxChild::Leaf(SyntaxLeaf::new(value))
     }
@@ -349,6 +364,6 @@ impl SyntaxLeaf {
 
 impl ToNestedString for SyntaxLeaf {
     fn to_nested_string(&self, nest: usize) -> String {
-        format!("{}|- {}", "  ".repeat(nest), self.value.replace("\n", "\\n").replace("\t", "\\t"))
+        format!("{}|- \"{}\"", "  ".repeat(nest), self.value.replace("\n", "\\n").replace("\t", "\\t"))
     }
 }

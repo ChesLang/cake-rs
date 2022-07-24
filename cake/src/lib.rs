@@ -112,7 +112,7 @@ impl Debug for Cake {
 
 impl Display for Cake {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.rule_map.iter().map(|v| v.1.to_string()).collect::<Vec<String>>().join("\n"))
+        write!(f, "{}", self.rule_map.iter().map(|(id, rule)| format!("{} := {};", id, rule)).collect::<Vec<String>>().join("\n"))
     }
 }
 
@@ -197,21 +197,39 @@ impl Into<Vec<Rule>> for RuleVec {
 #[derive(Clone)]
 pub struct Element {
     pub kind: ElementKind,
+    pub tag: Option<Tag>,
     pub lookahead_kind: LookaheadKind,
     pub loop_range: LoopRange,
     has_loop_range_min_set: bool,
     has_loop_range_max_set: bool,
+    has_modified: bool,
 }
 
 impl Element {
     pub fn new(kind: ElementKind) -> Element {
         Element {
             kind: kind,
+            tag: None,
             lookahead_kind: LookaheadKind::None,
             loop_range: LoopRange::default(),
             has_loop_range_min_set: false,
             has_loop_range_max_set: false,
+            has_modified: false,
         }
+    }
+
+    fn mark_as_modified(&mut self) {
+        self.has_modified = true;
+    }
+
+    pub fn tag(mut self, name: &str) -> Element {
+        if self.tag.is_some() {
+            panic!("Tag is already set.");
+        }
+
+        self.mark_as_modified();
+        self.tag = Some(name.to_string());
+        self
     }
 
     fn set_lookahead_kind(mut self, kind: LookaheadKind) -> Element {
@@ -219,6 +237,7 @@ impl Element {
             panic!("Lookahead kind is already set.");
         }
 
+        self.mark_as_modified();
         self.lookahead_kind = kind;
         self
     }
@@ -274,6 +293,7 @@ impl Element {
     }
 
     fn min_(mut self, min: usize) -> Element {
+        self.mark_as_modified();
         self.has_loop_range_min_set = true;
         self.loop_range = LoopRange::new(min, Maxable::Max);
         self
@@ -316,6 +336,7 @@ impl Element {
     }
 
     fn max_(mut self, min: usize, max: usize) -> Element {
+        self.mark_as_modified();
         self.has_loop_range_max_set = true;
         self.loop_range = LoopRange::new(min, Maxable::Specified(max));
         self
@@ -337,7 +358,10 @@ impl Element {
     }
 
     fn to_choice_elements(self) -> Vec<Rc<Element>> {
-        if self.is_choice() {
+        if self.has_modified {
+            let new_elem = Element::new(ElementKind::Choice(vec![Rc::new(self)]));
+            vec![Rc::new(new_elem)]
+        } else if self.is_choice() {
             match self.kind {
                 ElementKind::Choice(elems) => elems,
                 _ => unreachable!(),
@@ -348,7 +372,10 @@ impl Element {
     }
 
     fn to_sequence_elements(self) -> Vec<Rc<Element>> {
-        if self.is_sequence() {
+        if self.has_modified {
+            let new_elem = Element::new(ElementKind::Sequence(vec![Rc::new(self)]));
+            vec![Rc::new(new_elem)]
+        } else if self.is_sequence() {
             match self.kind {
                 ElementKind::Sequence(elems) => elems,
                 _ => unreachable!(),
@@ -381,7 +408,12 @@ impl Debug for Element {
 
 impl Display for Element {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{}{}", self.lookahead_kind, self.kind, self.loop_range)
+        let tag_s = match &self.tag {
+            Some(name) => format!(":{}", name),
+            None => String::new(),
+        };
+
+        write!(f, "{}{}{}{}", self.lookahead_kind, self.kind, self.loop_range, tag_s)
     }
 }
 
@@ -430,7 +462,7 @@ impl Display for ElementKind {
             ElementKind::Choice(elems) => format!("({})", elems.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(" | ")),
             ElementKind::Sequence(elems) => format!("({})", elems.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(" + ")),
             ElementKind::Rule(id) => id.to_string(),
-            ElementKind::String(value) => value.clone(),
+            ElementKind::String(value) => format!("\"{}\"", value),
             ElementKind::Regex(regex) => format!("/{}/", regex.to_string()),
             ElementKind::Wildcard => "_".to_string(),
             ElementKind::Skip => "SKIP".to_string(),
@@ -439,6 +471,8 @@ impl Display for ElementKind {
         write!(f, "{}", s)
     }
 }
+
+pub type Tag = String;
 
 #[derive(Clone, PartialEq)]
 pub enum LookaheadKind {
