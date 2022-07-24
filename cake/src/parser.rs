@@ -47,7 +47,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn parse(cake: &'a Cake, input: &'a str, max_recursion: usize) -> ParserResult<'a> {
+    pub fn parse(cake: &'a Cake, input: &'a str, max_recursion: usize) -> Result<Option<SyntaxTree>, ParserError> {
         let mut parser = Parser {
             cake: cake,
             max_recursion: max_recursion,
@@ -57,16 +57,15 @@ impl<'a> Parser<'a> {
         };
 
         parser.input = input;
-        // fix
-        let start_elem = parser.cake.rule_map.get(&RuleId("Main::main".to_string())).unwrap().clone();
 
-        match parser.lookahead(&start_elem) {
-            Ok(option) => {
-                if parser.index == parser.input.count() {
-                    Ok(option)
+        match parser.rule(&RuleId("Main::main".to_string())) {
+            Ok(option) => match option {
+                Some(child) => if parser.index == parser.input.count() {
+                    Ok(Some(SyntaxTree::new(child)))
                 } else {
                     Ok(None)
-                }
+                },
+                None => Ok(None)
             },
             Err(e) => Err(e),
         }
@@ -163,7 +162,13 @@ impl<'a> Parser<'a> {
         match elem_kind {
             ElementKind::Choice(elems) => self.choice(elems),
             ElementKind::Sequence(elems) => self.seq(elems),
-            ElementKind::Rule(rule) => self.rule(rule),
+            ElementKind::Rule(rule) => match self.rule(rule) {
+                Ok(option) => match option {
+                    Some(new_child) => Ok(Some(vec![SyntaxChild::Node(new_child)])),
+                    None => Ok(None),
+                },
+                Err(e) => Err(e),
+            },
             ElementKind::String(s) => self.str(&s),
             ElementKind::Regex(regex) => self.regex(&regex),
             ElementKind::Wildcard => self.wildcard(),
@@ -208,7 +213,7 @@ impl<'a> Parser<'a> {
         Ok(Some(children))
     }
 
-    fn rule(&mut self, id: &RuleId) -> ParserResult {
+    fn rule(&mut self, id: &RuleId) -> Result<Option<SyntaxNode>, ParserError> {
         let elem = match self.cake.rule_map.get(id) {
             Some(v) => v,
             None => return Err(ParserError::RuleNotExists {
@@ -216,7 +221,13 @@ impl<'a> Parser<'a> {
             }),
         };
 
-        self.lookahead(elem)
+        match self.lookahead(elem) {
+            Ok(option) => match option {
+                Some(new_children) => Ok(Some(SyntaxNode::new(id.to_string(), new_children))),
+                None => Ok(None),
+            },
+            Err(e) => Err(e),
+        }
     }
 
     fn str(&mut self, s: &str) -> ParserResult {
@@ -267,6 +278,14 @@ pub struct SyntaxTree {
     pub root: SyntaxNode,
 }
 
+impl SyntaxTree {
+    pub fn new(root: SyntaxNode) -> SyntaxTree {
+        SyntaxTree {
+            root: root,
+        }
+    }
+}
+
 impl Display for SyntaxTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.root.to_nested_string(0))
@@ -300,9 +319,18 @@ pub struct SyntaxNode {
     pub children: Vec<SyntaxChild>,
 }
 
+impl SyntaxNode {
+    pub fn new(name: String, children: Vec<SyntaxChild>) -> SyntaxNode {
+        SyntaxNode {
+            name: name,
+            children: children,
+        }
+    }
+}
+
 impl ToNestedString for SyntaxNode {
     fn to_nested_string(&self, nest: usize) -> String {
-        format!("{}| {}{}", "  ".repeat(nest), self.name, self.children.iter().map(|v| v.to_nested_string(nest + 1)).collect::<Vec<String>>().join("\n"))
+        format!("{}| {}{}", "  ".repeat(nest), self.name, self.children.iter().map(|v| format!("\n{}", v.to_nested_string(nest + 1))).collect::<Vec<String>>().join(""))
     }
 }
 
@@ -321,6 +349,6 @@ impl SyntaxLeaf {
 
 impl ToNestedString for SyntaxLeaf {
     fn to_nested_string(&self, nest: usize) -> String {
-        format!("{}- {}", "  ".repeat(nest), self.value)
+        format!("{}|- {}", "  ".repeat(nest), self.value.replace("\n", "\\n").replace("\t", "\\t"))
     }
 }
