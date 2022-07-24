@@ -258,9 +258,19 @@ impl<'a> Parser<'a> {
     }
 }
 
+pub trait ToNestedString {
+    fn to_nested_string(&self, nest: usize) -> String;
+}
+
 #[derive(Clone, Debug)]
 pub struct SyntaxTree {
     pub root: SyntaxNode,
+}
+
+impl Display for SyntaxTree {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.root.to_nested_string(0))
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -275,9 +285,25 @@ impl SyntaxChild {
     }
 }
 
+impl ToNestedString for SyntaxChild {
+    fn to_nested_string(&self, nest: usize) -> String {
+        match self {
+            SyntaxChild::Node(v) => v.to_nested_string(nest),
+            SyntaxChild::Leaf(v) => v.to_nested_string(nest),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SyntaxNode {
+    pub name: String,
     pub children: Vec<SyntaxChild>,
+}
+
+impl ToNestedString for SyntaxNode {
+    fn to_nested_string(&self, nest: usize) -> String {
+        format!("{}| {}{}", "  ".repeat(nest), self.name, self.children.iter().map(|v| v.to_nested_string(nest + 1)).collect::<Vec<String>>().join("\n"))
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -290,5 +316,11 @@ impl SyntaxLeaf {
         SyntaxLeaf {
             value: value,
         }
+    }
+}
+
+impl ToNestedString for SyntaxLeaf {
+    fn to_nested_string(&self, nest: usize) -> String {
+        format!("{}- {}", "  ".repeat(nest), self.value)
     }
 }
