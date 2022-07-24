@@ -30,7 +30,7 @@ impl GraphemeCount for str {
     }
 }
 
-pub type ParserResult<'a> = Result<Option<Vec<SyntaxChild>>, ParserError>;
+pub type ParserResult<'a, T> = Result<Option<T>, ParserError>;
 
 #[derive(Clone, Debug)]
 pub enum ParserError {
@@ -47,7 +47,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn parse(cake: &'a Cake, input: &'a str, max_recursion: usize) -> Result<Option<SyntaxTree>, ParserError> {
+    pub fn parse(cake: &'a Cake, input: &'a str, max_recursion: usize) -> ParserResult<'a, SyntaxTree> {
         let mut parser = Parser {
             cake: cake,
             max_recursion: max_recursion,
@@ -71,7 +71,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn lookahead(&mut self, elem: &Rc<Element>) -> ParserResult {
+    fn lookahead(&mut self, elem: &Rc<Element>) -> ParserResult<Vec<SyntaxChild>> {
         if self.recursion_count >= self.max_recursion {
             return Err(ParserError::RecursionExceededLimit);
         }
@@ -88,7 +88,7 @@ impl<'a> Parser<'a> {
         result
     }
 
-    fn lookahead_(&mut self, elem: &Rc<Element>, is_positive: bool) -> ParserResult {
+    fn lookahead_(&mut self, elem: &Rc<Element>, is_positive: bool) -> ParserResult<Vec<SyntaxChild>> {
         let tmp_index = self.index;
         let result = self.times(elem);
 
@@ -112,7 +112,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn times(&mut self, elem: &Rc<Element>) -> ParserResult {
+    fn times(&mut self, elem: &Rc<Element>) -> ParserResult<Vec<SyntaxChild>> {
         if elem.loop_range.is_default() {
             self.expr(&elem.kind)
         } else {
@@ -158,7 +158,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn expr(&mut self, elem_kind: &ElementKind) -> ParserResult {
+    fn expr(&mut self, elem_kind: &ElementKind) -> ParserResult<Vec<SyntaxChild>> {
         match elem_kind {
             ElementKind::Choice(elems) => self.choice(elems),
             ElementKind::Sequence(elems) => self.seq(elems),
@@ -176,7 +176,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn choice(&mut self, subelems: &Vec<Rc<Element>>) -> ParserResult {
+    fn choice(&mut self, subelems: &Vec<Rc<Element>>) -> ParserResult<Vec<SyntaxChild>> {
         let tmp_index = self.index;
 
         for each_elem in subelems {
@@ -193,7 +193,7 @@ impl<'a> Parser<'a> {
         Ok(None)
     }
 
-    fn seq(&mut self, subelems: &Vec<Rc<Element>>) -> ParserResult {
+    fn seq(&mut self, subelems: &Vec<Rc<Element>>) -> ParserResult<Vec<SyntaxChild>> {
         let tmp_index = self.index;
         let mut children = Vec::new();
 
@@ -213,7 +213,7 @@ impl<'a> Parser<'a> {
         Ok(Some(children))
     }
 
-    fn rule(&mut self, id: &RuleId) -> Result<Option<SyntaxNode>, ParserError> {
+    fn rule(&mut self, id: &RuleId) -> ParserResult<SyntaxNode> {
         let elem = match self.cake.rule_map.get(id) {
             Some(v) => v,
             None => return Err(ParserError::RuleNotExists {
@@ -230,7 +230,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn str(&mut self, s: &str) -> ParserResult {
+    fn str(&mut self, s: &str) -> ParserResult<Vec<SyntaxChild>> {
         if self.input.count() >= self.index + s.count() && self.input.slice(self.index, s.count()) == *s {
             self.index += s.count();
             Ok(Some(vec![SyntaxChild::leaf(s.to_string())]))
@@ -239,7 +239,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn regex(&mut self, regex: &Regex) -> ParserResult {
+    fn regex(&mut self, regex: &Regex) -> ParserResult<Vec<SyntaxChild>> {
         match regex.find(&self.input.slice(self.index, self.input.count() - self.index)) {
             Some(regex_match) => {
                 if regex_match.start() != 0 {
@@ -254,7 +254,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn wildcard(&mut self) -> ParserResult {
+    fn wildcard(&mut self) -> ParserResult<Vec<SyntaxChild>> {
         if self.input.count() >= self.index + 1 {
             let s = self.input.slice(self.index, 1);
             self.index += 1;
@@ -264,7 +264,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn skip(&mut self) -> ParserResult {
+    fn skip(&mut self) -> ParserResult<Vec<SyntaxChild>> {
         Ok(Some(Vec::new()))
     }
 }
