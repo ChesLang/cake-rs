@@ -202,7 +202,6 @@ pub struct Element {
     pub loop_range: LoopRange,
     has_loop_range_min_set: bool,
     has_loop_range_max_set: bool,
-    has_modified: bool,
 }
 
 impl Element {
@@ -214,12 +213,12 @@ impl Element {
             loop_range: LoopRange::default(),
             has_loop_range_min_set: false,
             has_loop_range_max_set: false,
-            has_modified: false,
         }
     }
 
-    fn mark_as_modified(&mut self) {
-        self.has_modified = true;
+    pub fn group(mut self) -> Element {
+        self = Element::new(ElementKind::Element(Rc::new(self)));
+        self
     }
 
     pub fn tag(mut self, name: &str) -> Element {
@@ -227,7 +226,6 @@ impl Element {
             panic!("Tag is already set.");
         }
 
-        self.mark_as_modified();
         self.tag = Some(name.to_string());
         self
     }
@@ -237,7 +235,6 @@ impl Element {
             panic!("Lookahead kind is already set.");
         }
 
-        self.mark_as_modified();
         self.lookahead_kind = kind;
         self
     }
@@ -293,7 +290,6 @@ impl Element {
     }
 
     fn min_(mut self, min: usize) -> Element {
-        self.mark_as_modified();
         self.has_loop_range_min_set = true;
         self.loop_range = LoopRange::new(min, Maxable::Max);
         self
@@ -336,7 +332,6 @@ impl Element {
     }
 
     fn max_(mut self, min: usize, max: usize) -> Element {
-        self.mark_as_modified();
         self.has_loop_range_max_set = true;
         self.loop_range = LoopRange::new(min, Maxable::Specified(max));
         self
@@ -358,10 +353,7 @@ impl Element {
     }
 
     fn to_choice_elements(self) -> Vec<Rc<Element>> {
-        if self.has_modified {
-            let new_elem = Element::new(ElementKind::Choice(vec![Rc::new(self)]));
-            vec![Rc::new(new_elem)]
-        } else if self.is_choice() {
+        if self.is_choice() {
             match self.kind {
                 ElementKind::Choice(elems) => elems,
                 _ => unreachable!(),
@@ -372,10 +364,7 @@ impl Element {
     }
 
     fn to_sequence_elements(self) -> Vec<Rc<Element>> {
-        if self.has_modified {
-            let new_elem = Element::new(ElementKind::Sequence(vec![Rc::new(self)]));
-            vec![Rc::new(new_elem)]
-        } else if self.is_sequence() {
+        if self.is_sequence() {
             match self.kind {
                 ElementKind::Sequence(elems) => elems,
                 _ => unreachable!(),
@@ -441,6 +430,8 @@ impl Add for Element {
 
 #[derive(Clone)]
 pub enum ElementKind {
+    // Supports a single covered element (like `((e):mytag1):mytag2`).
+    Element(Rc<Element>),
     Choice(Vec<Rc<Element>>),
     Sequence(Vec<Rc<Element>>),
     Rule(RuleId),
@@ -459,6 +450,7 @@ impl Debug for ElementKind {
 impl Display for ElementKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let s = match self {
+            ElementKind::Element(elem) => format!("({})", elem),
             ElementKind::Choice(elems) => format!("({})", elems.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(" | ")),
             ElementKind::Sequence(elems) => format!("({})", elems.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(" + ")),
             ElementKind::Rule(id) => id.to_string(),

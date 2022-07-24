@@ -160,6 +160,7 @@ impl<'a> Parser<'a> {
 
     fn expr(&mut self, elem: &Rc<Element>) -> ParserResult<Vec<SyntaxChild>> {
         let result = match &elem.kind {
+            ElementKind::Element(elem) => self.lookahead(elem),
             ElementKind::Choice(elems) => self.choice(elems),
             ElementKind::Sequence(elems) => self.seq(elems),
             ElementKind::Rule(rule) => match self.rule(rule) {
