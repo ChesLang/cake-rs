@@ -216,9 +216,8 @@ impl Element {
         }
     }
 
-    pub fn group(mut self) -> Element {
-        self = Element::new(ElementKind::Element(Rc::new(self)));
-        self
+    pub fn group(self) -> Element {
+        Element::new(ElementKind::Element(Rc::new(self)))
     }
 
     pub fn tag(mut self, name: &str) -> Element {
