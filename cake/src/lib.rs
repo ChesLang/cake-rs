@@ -78,12 +78,14 @@ pub fn skip() -> Element {
 
 pub struct Cake {
     rule_map: HashMap<RuleId, Rc<Element>>,
+    start_rule_id: RuleId,
 }
 
 impl Cake {
-    pub fn new() -> Cake {
+    pub fn new(start_rule_id: RuleId) -> Cake {
         Cake {
             rule_map: HashMap::new(),
+            start_rule_id: start_rule_id,
         }
     }
 

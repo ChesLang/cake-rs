@@ -58,7 +58,7 @@ impl<'a> Parser<'a> {
 
         parser.input = input;
 
-        match parser.rule(&RuleId("Main::main".to_string())) {
+        match parser.rule(&parser.cake.start_rule_id) {
             Ok(option) => match option {
                 Some(child) => if parser.index == parser.input.count() {
                     Ok(Some(SyntaxTree::new(child)))
