@@ -114,11 +114,11 @@ impl Display for Cake {
     }
 }
 
-pub trait Module: Debug + ModuleAssist {
+pub trait Module: ModuleAssist {
     fn new() -> Self;
 }
 
-pub trait ModuleAssist: Debug {
+pub trait ModuleAssist {
     fn into_rule_vec(self) -> RuleVec;
 }
 
