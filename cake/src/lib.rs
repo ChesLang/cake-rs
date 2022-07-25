@@ -548,9 +548,9 @@ impl Default for Reflection {
 impl Display for Reflection {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let s = match self {
-            Reflection::Reflected => ":",
-            Reflection::ReflectedWithName(name) => name,
-            Reflection::Hidden => "",
+            Reflection::Reflected => ":".to_string(),
+            Reflection::ReflectedWithName(name) => format!(":{}", name),
+            Reflection::Hidden => String::new(),
         };
 
         write!(f, "{}", s)
