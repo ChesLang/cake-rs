@@ -176,15 +176,22 @@ impl<'a> Parser<'a> {
             ElementKind::Skip => self.skip(),
         };
 
-        match &elem.tag {
-            Some(name) => match result {
+        match &elem.reflection {
+            Reflection::Reflected => result,
+            Reflection::ReflectedWithName(name) => match result {
                 Ok(option) => match option {
-                    Some(new_children) => Ok(Some(vec![SyntaxChild::node(name.clone(), new_children)])),
+                    Some(new_children) => Ok(Some(vec![SyntaxChild::node(name.to_string(), new_children)])),
                     None => Ok(None),
                 },
                 Err(e) => Err(e),
             },
-            None => result,
+            Reflection::Hidden => match result {
+                Ok(option) => match option {
+                    Some(_) => Ok(Some(Vec::new())),
+                    None => Ok(None),
+                },
+                Err(e) => Err(e),
+            },
         }
     }
 

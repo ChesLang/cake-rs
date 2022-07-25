@@ -19,6 +19,7 @@ use {
         ops::{
             Add,
             BitOr,
+            Not,
         },
         rc::Rc,
     },
@@ -214,7 +215,7 @@ impl Into<Vec<Rule>> for RuleVec {
 #[derive(Clone)]
 pub struct Element {
     pub kind: ElementKind,
-    pub tag: Option<Tag>,
+    pub reflection: Reflection,
     pub lookahead_kind: LookaheadKind,
     pub loop_range: LoopRange,
     has_loop_range_min_set: bool,
@@ -225,7 +226,7 @@ impl Element {
     pub fn new(kind: ElementKind) -> Element {
         Element {
             kind: kind,
-            tag: None,
+            reflection: Reflection::default(),
             lookahead_kind: LookaheadKind::None,
             loop_range: LoopRange::default(),
             has_loop_range_min_set: false,
@@ -276,12 +277,21 @@ impl Element {
         }
     }
 
-    pub fn tag(mut self, name: &str) -> Element {
-        if self.tag.is_some() {
-            panic!("Tag is already set.");
+    pub fn name(mut self, name: &str) -> Element {
+        if self.reflection != Reflection::default() {
+            panic!("Reflection is already set.");
         }
 
-        self.tag = Some(name.to_string());
+        self.reflection = Reflection::ReflectedWithName(name.to_string());
+        self
+    }
+
+    fn hide_(mut self) -> Element {
+        if self.reflection != Reflection::default() {
+            panic!("Reflection is already set.");
+        }
+
+        self.reflection = Reflection::Hidden;
         self
     }
 
@@ -452,12 +462,7 @@ impl Debug for Element {
 
 impl Display for Element {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let tag_s = match &self.tag {
-            Some(name) => format!(":{}", name),
-            None => String::new(),
-        };
-
-        write!(f, "{}{}{}{}", self.lookahead_kind, self.kind, self.loop_range, tag_s)
+        write!(f, "{}{}{}{}", self.lookahead_kind, self.kind, self.loop_range, self.reflection)
     }
 }
 
@@ -480,6 +485,14 @@ impl Add for Element {
         let mut second = rhs.to_sequence_elements();
         first.append(&mut second);
         Element::new(ElementKind::Sequence(first))
+    }
+}
+
+impl Not for Element {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        self.hide_()
     }
 }
 
@@ -519,7 +532,30 @@ impl Display for ElementKind {
     }
 }
 
-pub type Tag = String;
+#[derive(Clone, PartialEq)]
+pub enum Reflection {
+    Reflected,
+    ReflectedWithName(String),
+    Hidden
+}
+
+impl Default for Reflection {
+    fn default() -> Reflection {
+        Reflection::Reflected
+    }
+}
+
+impl Display for Reflection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Reflection::Reflected => ":",
+            Reflection::ReflectedWithName(name) => name,
+            Reflection::Hidden => "",
+        };
+
+        write!(f, "{}", s)
+    }
+}
 
 #[derive(Clone, PartialEq)]
 pub enum LookaheadKind {
