@@ -2,6 +2,11 @@ pub mod parser;
 mod tests;
 
 use {
+    crate::parser::{
+        Parser,
+        ParserResult,
+        SyntaxTree,
+    },
     regex::Regex,
     std::{
         collections::HashMap,
@@ -101,6 +106,10 @@ impl Cake {
 
             self.rule_map.insert(id, each_rule.element);
         }
+    }
+
+    pub fn parse<'a>(&self, input: &'a str, max_recursion: usize) -> ParserResult<'a, SyntaxTree> {
+        Parser::parse(self, input, max_recursion)
     }
 }
 
