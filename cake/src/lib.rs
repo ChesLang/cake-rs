@@ -32,11 +32,11 @@ macro_rules! new_mod {
 
 #[macro_export]
 macro_rules! add_rules {
-    ($($rule_name:ident := $rule_elem:expr;)*) => {
+    ($($rule_name:ident $([$separator:expr])? := $rule_elem:expr;)*) => {
         {
             Self {
                 $(
-                    $rule_name: $rule_elem,
+                    $rule_name: $rule_elem $(.separate($separator, true))?,
                 )*
             }
         }
@@ -182,7 +182,7 @@ impl Display for Rule {
 }
 
 #[derive(Clone)]
-pub struct RuleVec(Vec<Rule>);
+pub struct RuleVec(pub Vec<Rule>);
 
 impl Debug for RuleVec {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
