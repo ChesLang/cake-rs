@@ -75,7 +75,7 @@ fn generate_module_assist_impl(item_name: &proc_macro2::Ident, fields: &syn::pun
         let rule_id = format!("{}::{}", item_name, rule_name);
 
         quote!{
-            rules.push(Rule::from(RuleId(#rule_id.to_string()), self.#rule_name.clone()));
+            rules.push(Rule::from(RuleId(#rule_id.to_string()), self.#rule_name.clone()).detect_left_recursion());
         }
     }).collect::<Vec<proc_macro2::TokenStream>>();
 

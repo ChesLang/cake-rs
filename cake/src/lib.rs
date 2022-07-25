@@ -159,6 +159,14 @@ impl Rule {
             element: Rc::new(elem),
         }
     }
+
+    pub fn detect_left_recursion(self) -> Rule {
+        if self.element.has_left_recursion(&self.id) {
+            panic!("Left recursion detected at rule definition of `{}`.", self.id);
+        }
+
+        self
+    }
 }
 
 impl Debug for Rule {
@@ -213,6 +221,18 @@ impl Element {
             loop_range: LoopRange::default(),
             has_loop_range_min_set: false,
             has_loop_range_max_set: false,
+        }
+    }
+
+    fn has_left_recursion(&self, rule_id: &RuleId) -> bool {
+        match &self.kind {
+            ElementKind::Element(elem) => elem.has_left_recursion(rule_id),
+            ElementKind::Choice(elems) | ElementKind::Sequence(elems) => match elems.get(0) {
+                Some(first_elem) => first_elem.has_left_recursion(rule_id),
+                None => false,
+            },
+            ElementKind::Rule(id) => *rule_id == *id,
+            _ => false,
         }
     }
 
