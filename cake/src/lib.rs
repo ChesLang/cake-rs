@@ -220,6 +220,33 @@ impl Element {
         Element::new(ElementKind::Element(Rc::new(self)))
     }
 
+    pub fn separate(self, separator: Element, recurse: bool) -> Element {
+        self.separate_(&Rc::new(separator), recurse)
+    }
+
+    fn separate_(&self, separator: &Rc<Element>, recurse: bool) -> Element {
+        match &self.kind {
+            ElementKind::Sequence(elems) => {
+                let mut new_elems = vec![separator.clone()];
+
+                for each_elem in elems {
+                    if recurse && matches!(&each_elem.kind, ElementKind::Sequence(_)) {
+                        new_elems.push(Rc::new(each_elem.separate_(separator, true)));
+                    } else {
+                        new_elems.push(each_elem.clone());
+                    };
+
+                    if !matches!(&each_elem.kind, ElementKind::Skip) {
+                        new_elems.push(separator.clone());
+                    }
+                }
+
+                Element::new(ElementKind::Sequence(new_elems))
+            },
+            _ => panic!("Cannot separate elements other than sequences."),
+        }
+    }
+
     pub fn tag(mut self, name: &str) -> Element {
         if self.tag.is_some() {
             panic!("Tag is already set.");
