@@ -174,6 +174,7 @@ impl<'a> Parser<'a> {
             ElementKind::Regex(regex) => self.regex(&regex),
             ElementKind::Wildcard => self.wildcard(),
             ElementKind::Skip => self.skip(),
+            ElementKind::SkipSeparator => self.skip(),
         };
 
         match &elem.reflection {

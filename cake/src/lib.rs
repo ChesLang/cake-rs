@@ -82,6 +82,10 @@ pub fn skip() -> Element {
     Element::new(ElementKind::Skip)
 }
 
+pub fn skip_separator() -> Element {
+    Element::new(ElementKind::SkipSeparator)
+}
+
 pub struct Cake {
     rule_map: HashMap<RuleId, Rc<Element>>,
     start_rule_id: RuleId,
@@ -260,13 +264,17 @@ impl Element {
                 let mut new_elems = vec![separator.clone()];
 
                 for each_elem in elems {
+                    if let ElementKind::SkipSeparator = each_elem.kind {
+                        new_elems.pop();
+                    }
+
                     if recurse && matches!(&each_elem.kind, ElementKind::Sequence(_)) {
                         new_elems.push(Rc::new(each_elem.separate_(separator, true)));
                     } else {
                         new_elems.push(each_elem.clone());
                     };
 
-                    if !matches!(&each_elem.kind, ElementKind::Skip) {
+                    if !matches!(&each_elem.kind, ElementKind::Skip | ElementKind::SkipSeparator) {
                         new_elems.push(separator.clone());
                     }
                 }
@@ -507,6 +515,7 @@ pub enum ElementKind {
     Regex(Regex),
     Wildcard,
     Skip,
+    SkipSeparator,
 }
 
 impl Debug for ElementKind {
@@ -526,6 +535,7 @@ impl Display for ElementKind {
             ElementKind::Regex(regex) => format!("/{}/", regex.to_string()),
             ElementKind::Wildcard => "_".to_string(),
             ElementKind::Skip => "SKIP".to_string(),
+            ElementKind::SkipSeparator => "SKIP_SEP".to_string(),
         };
 
         write!(f, "{}", s)
