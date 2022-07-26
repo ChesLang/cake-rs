@@ -50,7 +50,7 @@ fn generate_self_impl(item_name: &proc_macro2::Ident, fields: &syn::punctuated::
 
         quote!{
             pub fn #rule_name() -> Element {
-                Element::new(ElementKind::Rule(RuleId(#rule_id.to_string())))
+                Element::new(ElementKind::Rule(RuleId(#rule_id.to_string()), false))
             }
         }
     }).collect::<Vec<proc_macro2::TokenStream>>();

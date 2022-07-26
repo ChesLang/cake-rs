@@ -248,13 +248,25 @@ impl Element {
                 Some(first_elem) => first_elem.has_left_recursion(rule_id),
                 None => false,
             },
-            ElementKind::Rule(id) => *rule_id == *id,
+            ElementKind::Rule(id, _) => *rule_id == *id,
             _ => false,
         }
     }
 
     pub fn group(self) -> Element {
         Element::new(ElementKind::Element(Rc::new(self)))
+    }
+
+    pub fn enclose(self, encloser: Element) -> Element {
+        let encloser_ptr = Rc::new(encloser);
+
+        let elems = vec![
+            encloser_ptr.clone(),
+            Rc::new(self),
+            encloser_ptr,
+        ];
+
+        Element::new(ElementKind::Sequence(elems))
     }
 
     pub fn separate(self, separator: Element, recurse: bool) -> Element {
@@ -288,12 +300,33 @@ impl Element {
         }
     }
 
+    pub fn expand(self) -> Element {
+        if let ElementKind::Rule(rule, expands) = self.kind {
+            if expands {
+                panic!("Rule is already set to expanded.");
+            }
+
+            Element::new(ElementKind::Rule(rule, true))
+        } else {
+            panic!("Cannot expand elements other than rules.");
+        }
+    }
+
     pub fn name(mut self, name: &str) -> Element {
         if self.reflection != Reflection::default() {
             panic!("Reflection is already set.");
         }
 
         self.reflection = Reflection::ReflectedWithName(name.to_string());
+        self
+    }
+
+    pub fn replace(mut self, to: &str) -> Element {
+        if self.reflection != Reflection::default() {
+            panic!("Reflection is already set.");
+        }
+
+        self.reflection = Reflection::ReflectedWithName(to.to_string());
         self
     }
 
@@ -513,7 +546,7 @@ pub enum ElementKind {
     Element(Rc<Element>),
     Choice(Vec<Rc<Element>>),
     Sequence(Vec<Rc<Element>>),
-    Rule(RuleId),
+    Rule(RuleId, bool),
     String(String),
     Regex(Regex),
     Wildcard,
@@ -533,7 +566,7 @@ impl Display for ElementKind {
             ElementKind::Element(elem) => format!("({})", elem),
             ElementKind::Choice(elems) => format!("({})", elems.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(" | ")),
             ElementKind::Sequence(elems) => format!("({})", elems.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(" + ")),
-            ElementKind::Rule(id) => id.to_string(),
+            ElementKind::Rule(id, expands) => format!("{}{}", id, if *expands { "#" } else { "" }),
             ElementKind::String(value) => format!("\"{}\"", value),
             ElementKind::Regex(regex) => format!("/{}/", regex.to_string()),
             ElementKind::Wildcard => "_".to_string(),

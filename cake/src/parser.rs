@@ -61,13 +61,21 @@ impl<'a> Parser<'a> {
 
         parser.input = input;
 
-        match parser.rule(&parser.cake.start_rule_id) {
-            Ok(option) => match option {
-                Some(child) => if parser.index == parser.input.count() {
-                    Ok(Some(SyntaxTree::new(child)))
+        match parser.rule(&parser.cake.start_rule_id, false) {
+            Ok(mut option) => match option {
+                Some(mut children) => if parser.index == parser.input.count() {
+                    if let Some(mut first_child) = children.pop() {
+                        if let SyntaxChild::Node(first_node) = first_child {
+                            Ok(Some(SyntaxTree::new(first_node)))
+                        } else {
+                            unreachable!();
+                        }
+                    } else {
+                        unreachable!();
+                    }
                 } else {
-                    Ok(None)
-                },
+                    unreachable!();
+                }
                 None => Ok(None)
             },
             Err(e) => Err(e),
@@ -166,13 +174,7 @@ impl<'a> Parser<'a> {
             ElementKind::Element(elem) => self.lookahead(elem),
             ElementKind::Choice(elems) => self.choice(elems),
             ElementKind::Sequence(elems) => self.seq(elems),
-            ElementKind::Rule(rule) => match self.rule(rule) {
-                Ok(option) => match option {
-                    Some(new_child) => Ok(Some(vec![SyntaxChild::Node(new_child)])),
-                    None => Ok(None),
-                },
-                Err(e) => Err(e),
-            },
+            ElementKind::Rule(rule, expands) => self.rule(rule, *expands),
             ElementKind::String(s) => self.str(&s),
             ElementKind::Regex(regex) => self.regex(&regex),
             ElementKind::Wildcard => self.wildcard(),
@@ -236,7 +238,7 @@ impl<'a> Parser<'a> {
         Ok(Some(children))
     }
 
-    fn rule(&mut self, id: &RuleId) -> ParserResult<SyntaxNode> {
+    fn rule(&mut self, id: &RuleId, expands: bool) -> ParserResult<Vec<SyntaxChild>> {
         let elem = match self.cake.rule_map.get(id) {
             Some(v) => v,
             None => return Err(ParserError::RuleNotExists {
@@ -246,7 +248,11 @@ impl<'a> Parser<'a> {
 
         match self.lookahead(elem) {
             Ok(option) => match option {
-                Some(new_children) => Ok(Some(SyntaxNode::new(id.to_string(), new_children))),
+                Some(new_children) => if expands {
+                    Ok(Some(new_children))
+                } else {
+                    Ok(Some(vec![SyntaxChild::node(id.to_string(), new_children)]))
+                },
                 None => Ok(None),
             },
             Err(e) => Err(e),
