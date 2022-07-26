@@ -1,11 +1,14 @@
 pub mod parser;
+pub mod tree;
 mod tests;
 
 use {
-    crate::parser::{
-        Parser,
-        ParserResult,
-        SyntaxTree,
+    crate::{
+        parser::{
+            Parser,
+            ParserResult,
+        },
+        tree::*,
     },
     regex::Regex,
     std::{
