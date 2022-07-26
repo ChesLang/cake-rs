@@ -183,10 +183,20 @@ impl<'a> Parser<'a> {
         };
 
         match &elem.reflection {
-            Reflection::Reflected => result,
+            Reflection::Reflected => if let LeafValueReplacement::ReplaceWith(value) = &elem.replacement {
+                match result {
+                    Ok(option) => match option {
+                        Some(children) => Ok(Some(Parser::replace_leaf_value(children, &elem.replacement))),
+                        None => Ok(None),
+                    },
+                    Err(e) => Err(e),
+                }
+            } else {
+                result
+            },
             Reflection::ReflectedWithName(name) => match result {
                 Ok(option) => match option {
-                    Some(new_children) => Ok(Some(vec![SyntaxChild::node(name.to_string(), new_children)])),
+                    Some(new_children) => Ok(Some(Parser::replace_leaf_value(vec![SyntaxChild::node(name.to_string(), new_children)], &elem.replacement))),
                     None => Ok(None),
                 },
                 Err(e) => Err(e),
@@ -295,5 +305,13 @@ impl<'a> Parser<'a> {
 
     fn skip(&mut self) -> ParserResult<Vec<SyntaxChild>> {
         Ok(Some(Vec::new()))
+    }
+
+    fn replace_leaf_value(children: Vec<SyntaxChild>, replacement: &LeafValueReplacement) -> Vec<SyntaxChild> {
+        if let LeafValueReplacement::ReplaceWith(value) = replacement {
+            vec![SyntaxChild::leaf(value.clone())]
+        } else {
+            children
+        }
     }
 }

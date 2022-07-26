@@ -223,6 +223,7 @@ impl Into<Vec<Rule>> for RuleVec {
 pub struct Element {
     pub kind: ElementKind,
     pub reflection: Reflection,
+    pub replacement: LeafValueReplacement,
     pub lookahead_kind: LookaheadKind,
     pub loop_range: LoopRange,
     has_loop_range_min_set: bool,
@@ -234,6 +235,7 @@ impl Element {
         Element {
             kind: kind,
             reflection: Reflection::default(),
+            replacement: LeafValueReplacement::default(),
             lookahead_kind: LookaheadKind::None,
             loop_range: LoopRange::default(),
             has_loop_range_min_set: false,
@@ -322,17 +324,25 @@ impl Element {
     }
 
     pub fn replace(mut self, to: &str) -> Element {
-        if self.reflection != Reflection::default() {
-            panic!("Reflection is already set.");
+        if self.replacement != LeafValueReplacement::default() {
+            panic!("Replacement value is already set.");
         }
 
-        self.reflection = Reflection::ReflectedWithName(to.to_string());
+        if self.reflection == Reflection::Hidden {
+            panic!("Cannot replace value of hidden element.");
+        }
+
+        self.replacement = LeafValueReplacement::ReplaceWith(to.to_string());
         self
     }
 
     fn hide_(mut self) -> Element {
         if self.reflection != Reflection::default() {
             panic!("Reflection is already set.");
+        }
+
+        if let LeafValueReplacement::ReplaceWith(_) = self.replacement {
+            panic!("Cannot hide element which value replaced.");
         }
 
         self.reflection = Reflection::Hidden;
@@ -597,6 +607,29 @@ impl Display for Reflection {
             Reflection::Reflected => ":".to_string(),
             Reflection::ReflectedWithName(name) => format!(":{}", name),
             Reflection::Hidden => String::new(),
+        };
+
+        write!(f, "{}", s)
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub enum LeafValueReplacement {
+    ReplaceWith(String),
+    NoReplacement,
+}
+
+impl Default for LeafValueReplacement {
+    fn default() -> LeafValueReplacement {
+        LeafValueReplacement::NoReplacement
+    }
+}
+
+impl Display for LeafValueReplacement {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            LeafValueReplacement::ReplaceWith(name) => format!(":{}", name),
+            LeafValueReplacement::NoReplacement => String::new(),
         };
 
         write!(f, "{}", s)
