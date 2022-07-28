@@ -206,10 +206,12 @@ impl<'a> Parser<'a> {
             },
         };
 
-        if let Some(callback) = elem.callback {
-            callback(result)
-        } else {
-            result
+        match elem.callback {
+            Some(callback) => match result {
+                Ok(option) => Ok(callback(option)),
+                Err(e) => Err(e),
+            },
+            None => result,
         }
     }
 

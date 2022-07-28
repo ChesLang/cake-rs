@@ -219,8 +219,8 @@ impl Into<Vec<Rule>> for RuleVec {
     }
 }
 
-pub type ElementParserResult<'a> = ParserResult<'a, Vec<SyntaxChild>>;
-pub type ElementCallback = fn(result: ElementParserResult) -> ElementParserResult;
+pub type ElementParserOption = Option<Vec<SyntaxChild>>;
+pub type ElementCallback = fn(result: ElementParserOption) -> ElementParserOption;
 
 #[derive(Clone)]
 pub struct Element {
