@@ -182,17 +182,17 @@ impl<'a> Parser<'a> {
             ElementKind::SkipSeparator => self.skip(),
         };
 
-        match &elem.reflection {
+        let result = match &elem.reflection {
             Reflection::Reflected => match result {
                 Ok(option) => match option {
-                    Some(children) => Ok(Some(Parser::get_children_on_succeed(children, elem))),
+                    Some(children) => Ok(Some(Parser::proc_children_on_succeed(children, elem))),
                     None => Ok(None),
                 },
                 Err(e) => Err(e),
             },
             Reflection::ReflectedWithName(name) => match result {
                 Ok(option) => match option {
-                    Some(new_children) => Ok(Some(Parser::get_children_on_succeed(vec![SyntaxChild::node(name.to_string(), new_children)], elem))),
+                    Some(new_children) => Ok(Some(Parser::proc_children_on_succeed(vec![SyntaxChild::node(name.to_string(), new_children)], elem))),
                     None => Ok(None),
                 },
                 Err(e) => Err(e),
@@ -204,6 +204,12 @@ impl<'a> Parser<'a> {
                 },
                 Err(e) => Err(e),
             },
+        };
+
+        if let Some(callback) = elem.callback {
+            callback(result)
+        } else {
+            result
         }
     }
 
@@ -302,7 +308,7 @@ impl<'a> Parser<'a> {
         Ok(Some(Vec::new()))
     }
 
-    fn get_children_on_succeed(children: Vec<SyntaxChild>, elem: &Element) -> Vec<SyntaxChild> {
+    fn proc_children_on_succeed(children: Vec<SyntaxChild>, elem: &Element) -> Vec<SyntaxChild> {
         let children = if let LeafValueReplacement::ReplaceWith(value) = &elem.replacement {
             vec![SyntaxChild::leaf(value.clone())]
         } else {

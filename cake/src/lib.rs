@@ -219,6 +219,9 @@ impl Into<Vec<Rule>> for RuleVec {
     }
 }
 
+pub type ElementParserResult<'a> = ParserResult<'a, Vec<SyntaxChild>>;
+pub type ElementCallback = fn(result: ElementParserResult) -> ElementParserResult;
+
 #[derive(Clone)]
 pub struct Element {
     pub kind: ElementKind,
@@ -229,6 +232,7 @@ pub struct Element {
     pub loop_range: LoopRange,
     has_loop_range_min_set: bool,
     has_loop_range_max_set: bool,
+    pub callback: Option<ElementCallback>,
 }
 
 impl Element {
@@ -242,6 +246,7 @@ impl Element {
             loop_range: LoopRange::default(),
             has_loop_range_min_set: false,
             has_loop_range_max_set: false,
+            callback: None,
         }
     }
 
@@ -344,6 +349,11 @@ impl Element {
         }
 
         self.replacement = LeafValueReplacement::ReplaceWith(to.to_string());
+        self
+    }
+
+    pub fn run(mut self, callback: ElementCallback) -> Element {
+        self.callback = Some(callback);
         self
     }
 
