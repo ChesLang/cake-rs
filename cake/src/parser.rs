@@ -62,9 +62,9 @@ impl<'a> Parser<'a> {
         parser.input = input;
 
         match parser.rule(&parser.cake.start_rule_id, false) {
-            Ok(mut option) => match option {
+            Ok(option) => match option {
                 Some(mut children) => if parser.index == parser.input.count() {
-                    if let Some(mut first_child) = children.pop() {
+                    if let Some(first_child) = children.pop() {
                         if let SyntaxChild::Node(first_node) = first_child {
                             Ok(Some(SyntaxTree::new(first_node)))
                         } else {
@@ -183,20 +183,16 @@ impl<'a> Parser<'a> {
         };
 
         match &elem.reflection {
-            Reflection::Reflected => if let LeafValueReplacement::ReplaceWith(value) = &elem.replacement {
-                match result {
-                    Ok(option) => match option {
-                        Some(children) => Ok(Some(Parser::replace_leaf_value(children, &elem.replacement))),
-                        None => Ok(None),
-                    },
-                    Err(e) => Err(e),
-                }
-            } else {
-                result
+            Reflection::Reflected => match result {
+                Ok(option) => match option {
+                    Some(children) => Ok(Some(Parser::get_children_on_succeed(children, elem))),
+                    None => Ok(None),
+                },
+                Err(e) => Err(e),
             },
             Reflection::ReflectedWithName(name) => match result {
                 Ok(option) => match option {
-                    Some(new_children) => Ok(Some(Parser::replace_leaf_value(vec![SyntaxChild::node(name.to_string(), new_children)], &elem.replacement))),
+                    Some(new_children) => Ok(Some(Parser::get_children_on_succeed(vec![SyntaxChild::node(name.to_string(), new_children)], elem))),
                     None => Ok(None),
                 },
                 Err(e) => Err(e),
@@ -218,13 +214,12 @@ impl<'a> Parser<'a> {
             match self.lookahead(each_elem) {
                 Ok(option) => match option {
                     Some(children) => return Ok(Some(children)),
-                    None => (),
+                    None => self.index = tmp_index,
                 },
                 Err(e) => return Err(e),
             }
         }
 
-        self.index = tmp_index;
         Ok(None)
     }
 
@@ -307,11 +302,25 @@ impl<'a> Parser<'a> {
         Ok(Some(Vec::new()))
     }
 
-    fn replace_leaf_value(children: Vec<SyntaxChild>, replacement: &LeafValueReplacement) -> Vec<SyntaxChild> {
-        if let LeafValueReplacement::ReplaceWith(value) = replacement {
+    fn get_children_on_succeed(children: Vec<SyntaxChild>, elem: &Element) -> Vec<SyntaxChild> {
+        let children = if let LeafValueReplacement::ReplaceWith(value) = &elem.replacement {
             vec![SyntaxChild::leaf(value.clone())]
         } else {
             children
-        }
+        };
+
+        let children = if elem.join_children {
+            let mut s = String::new();
+
+            for each_child in children {
+                s += &each_child.join_children();
+            }
+
+            vec![SyntaxChild::leaf(s)]
+        } else {
+            children
+        };
+
+        children
     }
 }

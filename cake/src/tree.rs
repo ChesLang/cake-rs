@@ -45,6 +45,19 @@ impl SyntaxChild {
     pub fn leaf(value: String) -> SyntaxChild {
         SyntaxChild::Leaf(SyntaxLeaf::new(value))
     }
+
+    pub fn join_children(&self) -> String {
+        let mut s = String::new();
+
+        match self {
+            SyntaxChild::Node(node) => for each_child in &node.children {
+                s += &each_child.join_children()
+            },
+            SyntaxChild::Leaf(leaf) => s += &leaf.value,
+        }
+
+        s
+    }
 }
 
 impl ToNestedString for SyntaxChild {
@@ -80,6 +93,7 @@ impl ToNestedString for SyntaxNode {
 #[derive(Clone, Debug)]
 pub struct SyntaxLeaf {
     pub value: String,
+    // todo: add `replaced_from`
 }
 
 impl SyntaxLeaf {
@@ -92,6 +106,6 @@ impl SyntaxLeaf {
 
 impl ToNestedString for SyntaxLeaf {
     fn to_nested_string(&self, nest: usize) -> String {
-        format!("{}|- \"{}\"", "  ".repeat(nest), self.value.replace("\n", "\\n").replace("\t", "\\t"))
+        format!("{}|- \"{}\"", "  ".repeat(nest), self.value)
     }
 }

@@ -224,6 +224,7 @@ pub struct Element {
     pub kind: ElementKind,
     pub reflection: Reflection,
     pub replacement: LeafValueReplacement,
+    pub join_children: bool,
     pub lookahead_kind: LookaheadKind,
     pub loop_range: LoopRange,
     has_loop_range_min_set: bool,
@@ -236,6 +237,7 @@ impl Element {
             kind: kind,
             reflection: Reflection::default(),
             replacement: LeafValueReplacement::default(),
+            join_children: false,
             lookahead_kind: LookaheadKind::None,
             loop_range: LoopRange::default(),
             has_loop_range_min_set: false,
@@ -269,6 +271,15 @@ impl Element {
         ];
 
         Element::new(ElementKind::Sequence(elems))
+    }
+
+    pub fn join(mut self) -> Element {
+        if self.join_children {
+            panic!("Child leave joining is already set.");
+        }
+
+        self.join_children = true;
+        self
     }
 
     pub fn separate(self, separator: Element, recurse: bool) -> Element {
@@ -337,6 +348,8 @@ impl Element {
     }
 
     fn hide_(mut self) -> Element {
+        // todo: 先読みとの併用を禁止?
+
         if self.reflection != Reflection::default() {
             panic!("Reflection is already set.");
         }
@@ -516,7 +529,15 @@ impl Debug for Element {
 
 impl Display for Element {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{}{}{}", self.lookahead_kind, self.kind, self.loop_range, self.reflection)
+        let s = format!("{}{}{}{}", self.lookahead_kind, self.kind, self.loop_range, self.reflection);
+
+        let s = if self.join_children {
+            format!("JOIN{{{}}}", s)
+        } else {
+            s
+        };
+
+        write!(f, "{}", s)
     }
 }
 
