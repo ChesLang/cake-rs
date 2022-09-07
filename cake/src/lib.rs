@@ -52,6 +52,14 @@ macro_rules! add_rules {
     };
 }
 
+// grouping feature
+#[macro_export]
+macro_rules! g {
+    ($elem:expr) => {
+        Element::new(ElementKind::Element(Rc::new($elem)))
+    };
+}
+
 pub fn str(s: &str) -> Element {
     if s == "" {
         panic!("Use skip() instead of empty string.");
