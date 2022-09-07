@@ -583,7 +583,7 @@ impl Not for Element {
 
 #[derive(Clone)]
 pub enum ElementKind {
-    // Supports a single covered element (like `((e):mytag1):mytag2`).
+    // Supports a single covered element. (like `((e):mytag1):mytag2`)
     Element(Rc<Element>),
     Choice(Vec<Rc<Element>>),
     Sequence(Vec<Rc<Element>>),

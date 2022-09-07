@@ -82,6 +82,13 @@ impl SyntaxNode {
             children: children,
         }
     }
+
+    pub fn child_at(&self, i: usize) -> &SyntaxChild {
+        match self.children.get(i) {
+            Some(v) => v,
+            None => panic!("Child index is invalid."),
+        }
+    }
 }
 
 impl ToNestedString for SyntaxNode {
