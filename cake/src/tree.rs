@@ -8,11 +8,35 @@ use {
     },
 };
 
+#[macro_export]
+macro_rules! tree {
+    ($root:expr) => {
+        match $root {
+            SyntaxChild::Node(node) => SyntaxTree::new(node),
+            _ => panic!("cannot set leaf as syntax tree root"),
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! node {
+    ($name:expr => $children:expr) => {
+        SyntaxChild::node($name.to_string(), $children)
+    };
+}
+
+#[macro_export]
+macro_rules! leaf {
+    ($value:expr) => {
+        SyntaxChild::leaf($value.to_string())
+    };
+}
+
 pub trait ToNestedString {
     fn to_nested_string(&self, nest: usize) -> String;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SyntaxTree {
     pub root: SyntaxNode,
 }
@@ -31,7 +55,7 @@ impl Display for SyntaxTree {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SyntaxChild {
     Node(SyntaxNode),
     Leaf(SyntaxLeaf),
@@ -69,7 +93,7 @@ impl ToNestedString for SyntaxChild {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SyntaxNode {
     pub name: String,
     pub children: Vec<SyntaxChild>,
@@ -89,6 +113,8 @@ impl SyntaxNode {
             None => panic!("Child index is invalid."),
         }
     }
+
+    // todo: add node_at()
 }
 
 impl ToNestedString for SyntaxNode {
@@ -97,7 +123,7 @@ impl ToNestedString for SyntaxNode {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SyntaxLeaf {
     pub value: String,
     // todo: add `replaced_from`

@@ -33,12 +33,15 @@ impl GraphemeCount for str {
     }
 }
 
-pub type ParserResult<'a, T> = Result<Option<T>, ParserError>;
+pub type ParserResult = Result<SyntaxTree, ParserError>;
+pub type OptionalParserResult<'a, T> = Result<Option<T>, ParserError>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ParserError {
+    ExpectedEndOfInput,
     RuleNotExists { id: RuleId },
     RecursionExceededLimit,
+    UnexpectedEndOfInput,
 }
 
 pub struct Parser<'a> {
@@ -50,7 +53,11 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn parse(cake: &'a Cake, input: &'a str, max_recursion: usize) -> ParserResult<'a, SyntaxTree> {
+    pub fn parse(cake: &'a Cake, input: &'a str, max_recursion: usize) -> ParserResult {
+        Parser::parse_rule(cake, &cake.start_rule_id, input, max_recursion)
+    }
+
+    pub fn parse_rule(cake: &'a Cake, rule_id: &RuleId, input: &'a str, max_recursion: usize) -> ParserResult {
         let mut parser = Parser {
             cake: cake,
             max_recursion: max_recursion,
@@ -61,12 +68,13 @@ impl<'a> Parser<'a> {
 
         parser.input = input;
 
-        match parser.rule(&parser.cake.start_rule_id, false) {
+        match parser.rule(rule_id, false) {
             Ok(option) => match option {
                 Some(mut children) => if parser.index == parser.input.count() {
                     if let Some(first_child) = children.pop() {
                         if let SyntaxChild::Node(first_node) = first_child {
-                            Ok(Some(SyntaxTree::new(first_node)))
+                            // When input matched successfully:
+                            Ok(SyntaxTree::new(first_node))
                         } else {
                             unreachable!();
                         }
@@ -74,15 +82,17 @@ impl<'a> Parser<'a> {
                         unreachable!();
                     }
                 } else {
-                    unreachable!();
+                    // When didn't reach end of input due to unmatch of input:
+                    Err(ParserError::ExpectedEndOfInput)
                 }
-                None => Ok(None)
+                // When reached end of input while parsing:
+                None => Err(ParserError::UnexpectedEndOfInput)
             },
             Err(e) => Err(e),
         }
     }
 
-    fn lookahead(&mut self, elem: &Rc<Element>) -> ParserResult<Vec<SyntaxChild>> {
+    fn lookahead(&mut self, elem: &Rc<Element>) -> OptionalParserResult<Vec<SyntaxChild>> {
         if self.recursion_count >= self.max_recursion {
             return Err(ParserError::RecursionExceededLimit);
         }
@@ -99,7 +109,7 @@ impl<'a> Parser<'a> {
         result
     }
 
-    fn lookahead_(&mut self, elem: &Rc<Element>, is_positive: bool) -> ParserResult<Vec<SyntaxChild>> {
+    fn lookahead_(&mut self, elem: &Rc<Element>, is_positive: bool) -> OptionalParserResult<Vec<SyntaxChild>> {
         let tmp_index = self.index;
         let result = self.times(elem);
 
@@ -123,7 +133,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn times(&mut self, elem: &Rc<Element>) -> ParserResult<Vec<SyntaxChild>> {
+    fn times(&mut self, elem: &Rc<Element>) -> OptionalParserResult<Vec<SyntaxChild>> {
         if elem.loop_range.is_default() {
             self.expr(elem)
         } else {
@@ -169,7 +179,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn expr(&mut self, elem: &Rc<Element>) -> ParserResult<Vec<SyntaxChild>> {
+    fn expr(&mut self, elem: &Rc<Element>) -> OptionalParserResult<Vec<SyntaxChild>> {
         let result = match &elem.kind {
             ElementKind::Element(elem) => self.lookahead(elem),
             ElementKind::Choice(elems) => self.choice(elems),
@@ -215,7 +225,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn choice(&mut self, subelems: &Vec<Rc<Element>>) -> ParserResult<Vec<SyntaxChild>> {
+    fn choice(&mut self, subelems: &Vec<Rc<Element>>) -> OptionalParserResult<Vec<SyntaxChild>> {
         let tmp_index = self.index;
 
         for each_elem in subelems {
@@ -231,7 +241,7 @@ impl<'a> Parser<'a> {
         Ok(None)
     }
 
-    fn seq(&mut self, subelems: &Vec<Rc<Element>>) -> ParserResult<Vec<SyntaxChild>> {
+    fn seq(&mut self, subelems: &Vec<Rc<Element>>) -> OptionalParserResult<Vec<SyntaxChild>> {
         let tmp_index = self.index;
         let mut children = Vec::new();
 
@@ -251,7 +261,7 @@ impl<'a> Parser<'a> {
         Ok(Some(children))
     }
 
-    fn rule(&mut self, id: &RuleId, expands: bool) -> ParserResult<Vec<SyntaxChild>> {
+    fn rule(&mut self, id: &RuleId, expands: bool) -> OptionalParserResult<Vec<SyntaxChild>> {
         let elem = match self.cake.rule_map.get(id) {
             Some(v) => v,
             None => return Err(ParserError::RuleNotExists {
@@ -272,7 +282,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn str(&mut self, s: &str) -> ParserResult<Vec<SyntaxChild>> {
+    fn str(&mut self, s: &str) -> OptionalParserResult<Vec<SyntaxChild>> {
         if self.input.count() >= self.index + s.count() && self.input.slice(self.index, s.count()) == *s {
             self.index += s.count();
             Ok(Some(vec![SyntaxChild::leaf(s.to_string())]))
@@ -281,7 +291,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn regex(&mut self, regex: &Regex) -> ParserResult<Vec<SyntaxChild>> {
+    fn regex(&mut self, regex: &Regex) -> OptionalParserResult<Vec<SyntaxChild>> {
         match regex.find(&self.input.slice(self.index, self.input.count() - self.index)) {
             Some(regex_match) => {
                 if regex_match.start() != 0 {
@@ -296,7 +306,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn wildcard(&mut self) -> ParserResult<Vec<SyntaxChild>> {
+    fn wildcard(&mut self) -> OptionalParserResult<Vec<SyntaxChild>> {
         if self.input.count() >= self.index + 1 {
             let s = self.input.slice(self.index, 1);
             self.index += 1;
@@ -306,7 +316,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn skip(&mut self) -> ParserResult<Vec<SyntaxChild>> {
+    fn skip(&mut self) -> OptionalParserResult<Vec<SyntaxChild>> {
         Ok(Some(Vec::new()))
     }
 

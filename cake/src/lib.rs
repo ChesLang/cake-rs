@@ -1,5 +1,6 @@
 pub mod parser;
 pub mod tree;
+#[cfg(test)]
 mod tests;
 
 use {
@@ -124,7 +125,7 @@ impl Cake {
         }
     }
 
-    pub fn parse<'a>(&self, input: &'a str, max_recursion: usize) -> ParserResult<'a, SyntaxTree> {
+    pub fn parse<'a>(&self, input: &'a str, max_recursion: usize) -> ParserResult {
         Parser::parse(self, input, max_recursion)
     }
 }
