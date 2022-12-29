@@ -32,6 +32,13 @@ macro_rules! leaf {
     };
 }
 
+#[macro_export]
+macro_rules! continuation {
+    ($value:expr) => {
+        SyntaxChild::Continuation
+    };
+}
+
 pub trait ToNestedString {
     fn to_nested_string(&self, nest: usize) -> String;
 }
@@ -59,6 +66,7 @@ impl Display for SyntaxTree {
 pub enum SyntaxChild {
     Node(SyntaxNode),
     Leaf(SyntaxLeaf),
+    Continuation,
 }
 
 impl SyntaxChild {
@@ -78,6 +86,7 @@ impl SyntaxChild {
                 s += &each_child.join_children()
             },
             SyntaxChild::Leaf(leaf) => s += &leaf.value,
+            SyntaxChild::Continuation => (),
         }
 
         s
@@ -89,6 +98,8 @@ impl ToNestedString for SyntaxChild {
         match self {
             SyntaxChild::Node(v) => v.to_nested_string(nest),
             SyntaxChild::Leaf(v) => v.to_nested_string(nest),
+            // fix
+            SyntaxChild::Continuation => "[continue]".to_string(),
         }
     }
 }

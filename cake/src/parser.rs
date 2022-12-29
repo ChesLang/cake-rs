@@ -182,6 +182,26 @@ impl<'a> Parser<'a> {
     fn expr(&mut self, elem: &Rc<Element>) -> OptionalParserResult<Vec<SyntaxChild>> {
         let result = match &elem.kind {
             ElementKind::Element(elem) => self.lookahead(elem),
+            ElementKind::Continue(elem, until) => {
+                let children = match self.lookahead(elem)? {
+                    Some(v) => Some(v),
+                    None => {
+                        loop {
+                            if let Some(_) = self.lookahead(until)? {
+                                break Some(vec![SyntaxChild::Continuation]);
+                            }
+
+                            if self.index >= self.input.len() {
+                                break None;
+                            }
+
+                            self.index += 1;
+                        }
+                    },
+                };
+
+                Ok(children)
+            },
             ElementKind::Choice(elems) => self.choice(elems),
             ElementKind::Sequence(elems) => self.seq(elems),
             ElementKind::Rule(rule, expands) => self.rule(rule, *expands),

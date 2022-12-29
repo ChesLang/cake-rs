@@ -271,6 +271,7 @@ impl Element {
         }
     }
 
+    // rm?
     pub fn group(self) -> Element {
         Element::new(ElementKind::Element(Rc::new(self)))
     }
@@ -379,6 +380,10 @@ impl Element {
 
         self.reflection = Reflection::Hidden;
         self
+    }
+
+    pub fn continue_until(self, until: Element) -> Element {
+        Element::new(ElementKind::Continue(Rc::new(self), Rc::new(until)))
     }
 
     fn set_lookahead_kind(mut self, kind: LookaheadKind) -> Element {
@@ -594,6 +599,8 @@ impl Not for Element {
 pub enum ElementKind {
     // Supports a single covered element. (like `((e):mytag1):mytag2`)
     Element(Rc<Element>),
+    // Continue(target, until)
+    Continue(Rc<Element>, Rc<Element>),
     Choice(Vec<Rc<Element>>),
     Sequence(Vec<Rc<Element>>),
     Rule(RuleId, bool),
@@ -614,6 +621,7 @@ impl Display for ElementKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let s = match self {
             ElementKind::Element(elem) => format!("({})", elem),
+            ElementKind::Continue(elem, until) => format!("({})->({})", elem, until),
             ElementKind::Choice(elems) => format!("({})", elems.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(" | ")),
             ElementKind::Sequence(elems) => format!("({})", elems.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(" + ")),
             ElementKind::Rule(id, expands) => format!("{}{}", id, if *expands { "#" } else { "" }),

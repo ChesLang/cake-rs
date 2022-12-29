@@ -62,6 +62,29 @@ speculate!{
             }
         });
     }
+
+    it "parse continuous sequence with no continue" {
+        expect_success("s\nt", "ParsingTest::continue_until", tree!{
+            node!{
+                "ParsingTest::continue_until" => vec![
+                    leaf!("s"),
+                    leaf!("\n"),
+                    leaf!("t"),
+                ]
+            }
+        });
+    }
+
+    it "parse continuous sequence with continue" {
+        expect_success("\nt", "ParsingTest::continue_until", tree!{
+            node!{
+                "ParsingTest::continue_until" => vec![
+                    continuation!("\n"),
+                    leaf!("t"),
+                ]
+            }
+        });
+    }
 }
 
 #[derive(RuleContainer)]
@@ -70,6 +93,7 @@ struct ParsingTest {
     single_skip: Element,
     skip_in_choice: Element,
     skip_in_sequence: Element,
+    continue_until: Element,
 }
 
 impl Module for ParsingTest {
@@ -79,6 +103,9 @@ impl Module for ParsingTest {
             single_skip := skip();
             skip_in_choice := wildcard() | skip();
             skip_in_sequence := wildcard() + skip() + wildcard();
+            continue_until := g!{str("s") + str("\n")}.continue_until(str("\n")) + str("t");
+
+            // a := b c (d e).r#continue()
         }
     }
 }
